@@ -1,0 +1,52 @@
+name: Verificar y compilar Android
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lavadero-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Conservar la firma entre compilaciones de prueba
+        env:
+          LAVADERO_KEYSTORE: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          clave = os.environ['LAVADERO_KEYSTORE']
+          if not clave:
+              raise SystemExit('Falta configurar ANDROID_DEBUG_KEYSTORE en los secretos del repositorio.')
+          destino = Path.home() / '.android' / 'debug.keystore'
+          destino.parent.mkdir(parents=True, exist_ok=True)
+          destino.write_bytes(base64.b64decode(clave))
+          destino.chmod(0o600)
+          PY
+      - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mi-lavadero-apk-prueba
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

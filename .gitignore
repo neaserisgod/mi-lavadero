@@ -1,0 +1,13 @@
+.dart_tool/
+.flutter-plugins*
+build/
+coverage/
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+*.sqlite*
+*.lavadero.json
+capturas/
+.DS_Store
