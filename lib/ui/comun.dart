@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/dinero.dart';
+import 'diseno.dart';
 
 String fechaHora(DateTime fecha) =>
     '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year} · ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
@@ -60,27 +61,40 @@ class BotonAccion extends StatefulWidget {
 
 class _BotonAccionState extends State<BotonAccion> {
   bool ocupado = false;
+  bool presionado = false;
   @override
-  Widget build(BuildContext context) => FilledButton.icon(
-    onPressed: ocupado || widget.accion == null
-        ? null
-        : () async {
-            setState(() => ocupado = true);
-            try {
-              await widget.accion!();
-            } catch (e) {
-              if (context.mounted) aviso(context, errorLegible(e));
-            } finally {
-              if (mounted) setState(() => ocupado = false);
-            }
-          },
-    icon: ocupado
-        ? const SizedBox.square(
-            dimension: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : Icon(widget.icono ?? Icons.check_rounded),
-    label: Text(ocupado ? 'Guardando…' : widget.texto),
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (_) {
+      if (!ocupado && widget.accion != null) setState(() => presionado = true);
+    },
+    onPointerUp: (_) => setState(() => presionado = false),
+    onPointerCancel: (_) => setState(() => presionado = false),
+    child: AnimatedScale(
+      scale: presionado ? .975 : 1,
+      duration: movimiento(context, 130),
+      curve: Curves.easeOutCubic,
+      child: FilledButton.icon(
+        onPressed: ocupado || widget.accion == null
+            ? null
+            : () async {
+                setState(() => ocupado = true);
+                try {
+                  await widget.accion!();
+                } catch (e) {
+                  if (context.mounted) aviso(context, errorLegible(e));
+                } finally {
+                  if (mounted) setState(() => ocupado = false);
+                }
+              },
+        icon: ocupado
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(widget.icono ?? Icons.check_rounded),
+        label: Text(ocupado ? 'Guardando…' : widget.texto),
+      ),
+    ),
   );
 }
 
@@ -169,14 +183,17 @@ class Bloque extends StatelessWidget {
   final Widget child;
   final Color? color;
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: color ?? const Color(0xFFF0F2F6),
-      borderRadius: BorderRadius.circular(24),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Material(
+      color: color ?? Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: borde),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: const EdgeInsets.all(18), child: child),
     ),
-    child: child,
   );
 }
 

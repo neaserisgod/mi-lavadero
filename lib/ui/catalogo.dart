@@ -6,6 +6,7 @@ import '../domain/dinero.dart';
 import '../domain/lavadero.dart';
 import '../domain/servicios.dart';
 import 'comun.dart';
+import 'diseno.dart';
 
 class Catalogo {
   Catalogo(
@@ -601,119 +602,136 @@ class _EditorServicioState extends State<EditorServicio> {
           icon: Icon(avanzado ? Icons.expand_less : Icons.expand_more),
           label: Text(avanzado ? 'Menos opciones' : 'Más opciones'),
         ),
-        if (avanzado) ...[
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Precios diferentes por vehículo'),
-            value: preciosDistintos,
-            onChanged: (v) => setState(() {
-              if (v) {
-                for (final c in precios.values) {
-                  if (c.text.isEmpty) c.text = precio.text;
-                }
-              } else {
-                // Elegir un precio único es explícito; conserva las tarifas mientras se edita.
-                if (precio.text.isEmpty) {
-                  precio.text = precios.values
-                      .firstWhere(
-                        (c) => c.text.isNotEmpty,
-                        orElse: () => precios.values.first,
-                      )
-                      .text;
-                }
-              }
-              preciosDistintos = v;
-            }),
-          ),
-          if (preciosDistintos) ...[
-            const Text('Dejá vacío un vehículo que no atendés.'),
-            const SizedBox(height: 16),
-            for (final t in TipoVehiculo.values)
-              Campo('${t.etiqueta} (\$)', precios[t]!, numerico: true),
-          ],
-          Campo(
-            'Duración en minutos *',
-            duracion,
-            numerico: true,
-            onChanged: (_) => setState(() {}),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Incluir mano de obra'),
-            subtitle: Text(
-              'Hora de trabajo: ${formatearARS(widget.catalogo.valorHora)}. Se cambia en Ajustes.',
-            ),
-            value: manoDeObra,
-            onChanged: (v) => setState(() => manoDeObra = v),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Insumos por servicio',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          for (final i in widget.catalogo.insumos.where(
-            (i) => i.activo || cantidades.containsKey(i.id),
-          )) ...[
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('${i.nombre} (${i.unidad})'),
-              value: cantidades.containsKey(i.id),
-              onChanged: (v) => setState(() {
-                if (v!) {
-                  cantidades[i.id] = TextEditingController();
-                } else {
-                  cantidades.remove(i.id)?.dispose();
-                }
-              }),
-            ),
-            if (cantidades[i.id] case final ctrl?)
-              Campo(
-                'Cantidad usada (${i.unidad}) *',
-                ctrl,
-                numerico: true,
-                onChanged: (_) => setState(() {}),
-              ),
-          ],
-          if (widget.catalogo.insumos.isEmpty)
-            const Text(
-              'Podés agregar la receta después de cargar tus insumos.',
-            ),
-          const SizedBox(height: 16),
-          Bloque(
-            child: Column(
-              children: [
-                Dato('Insumos por lavado', formatearARS(costo.insumosCentavos)),
-                Dato(
-                  'Mano de obra estimada',
-                  formatearARS(costo.manoDeObraCentavos),
-                ),
-                Dato(
-                  'Costo estimado',
-                  formatearARS(costo.totalCentavos),
-                  grande: true,
-                ),
-                if (alcanzaPara(usos) case final n?)
-                  Dato('Alcanza para', '$n servicios'),
-              ],
-            ),
-          ),
-          Campo(
-            'Margen buscado (%)',
-            margen,
-            numerico: true,
-            onChanged: (_) => setState(() {}),
-          ),
-          Text(
-            'Precio sugerido: ${formatearARS(sugerido)}. No incluye gastos fijos ni impuestos.',
-          ),
+        AnimatedSize(
+          duration: movimiento(context, 240),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: avanzado
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Precios diferentes por vehículo'),
+                      value: preciosDistintos,
+                      onChanged: (v) => setState(() {
+                        if (v) {
+                          for (final c in precios.values) {
+                            if (c.text.isEmpty) c.text = precio.text;
+                          }
+                        } else {
+                          // Elegir un precio único es explícito; conserva las tarifas mientras se edita.
+                          if (precio.text.isEmpty) {
+                            precio.text = precios.values
+                                .firstWhere(
+                                  (c) => c.text.isNotEmpty,
+                                  orElse: () => precios.values.first,
+                                )
+                                .text;
+                          }
+                        }
+                        preciosDistintos = v;
+                      }),
+                    ),
+                    if (preciosDistintos) ...[
+                      const Text('Dejá vacío un vehículo que no atendés.'),
+                      const SizedBox(height: 16),
+                      for (final t in TipoVehiculo.values)
+                        Campo(
+                          '${t.etiqueta} (\$)',
+                          precios[t]!,
+                          numerico: true,
+                        ),
+                    ],
+                    Campo(
+                      'Duración en minutos *',
+                      duracion,
+                      numerico: true,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Incluir mano de obra'),
+                      subtitle: Text(
+                        'Hora de trabajo: ${formatearARS(widget.catalogo.valorHora)}. Se cambia en Ajustes.',
+                      ),
+                      value: manoDeObra,
+                      onChanged: (v) => setState(() => manoDeObra = v),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Insumos por servicio',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    for (final i in widget.catalogo.insumos.where(
+                      (i) => i.activo || cantidades.containsKey(i.id),
+                    )) ...[
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('${i.nombre} (${i.unidad})'),
+                        value: cantidades.containsKey(i.id),
+                        onChanged: (v) => setState(() {
+                          if (v!) {
+                            cantidades[i.id] = TextEditingController();
+                          } else {
+                            cantidades.remove(i.id)?.dispose();
+                          }
+                        }),
+                      ),
+                      if (cantidades[i.id] case final ctrl?)
+                        Campo(
+                          'Cantidad usada (${i.unidad}) *',
+                          ctrl,
+                          numerico: true,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                    ],
+                    if (widget.catalogo.insumos.isEmpty)
+                      const Text(
+                        'Podés agregar la receta después de cargar tus insumos.',
+                      ),
+                    const SizedBox(height: 16),
+                    Bloque(
+                      child: Column(
+                        children: [
+                          Dato(
+                            'Insumos por lavado',
+                            formatearARS(costo.insumosCentavos),
+                          ),
+                          Dato(
+                            'Mano de obra estimada',
+                            formatearARS(costo.manoDeObraCentavos),
+                          ),
+                          Dato(
+                            'Costo estimado',
+                            formatearARS(costo.totalCentavos),
+                            grande: true,
+                          ),
+                          if (alcanzaPara(usos) case final n?)
+                            Dato('Alcanza para', '$n servicios'),
+                        ],
+                      ),
+                    ),
+                    Campo(
+                      'Margen buscado (%)',
+                      margen,
+                      numerico: true,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    Text(
+                      'Precio sugerido: ${formatearARS(sugerido)}. No incluye gastos fijos ni impuestos.',
+                    ),
 
-          if (widget.servicio != null)
-            SwitchListTile(
-              title: const Text('Se ofrece actualmente'),
-              value: activo,
-              onChanged: (v) => setState(() => activo = v),
-            ),
-        ],
+                    if (widget.servicio != null)
+                      SwitchListTile(
+                        title: const Text('Se ofrece actualmente'),
+                        value: activo,
+                        onChanged: (v) => setState(() => activo = v),
+                      ),
+                  ],
+                )
+              : const SizedBox(width: double.infinity),
+        ),
       ],
       guardar: () async {
         final min = int.tryParse(duracion.text);

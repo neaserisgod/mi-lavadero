@@ -7,6 +7,7 @@ import '../domain/dinero.dart';
 import '../domain/lavadero.dart';
 import 'catalogo.dart';
 import 'comun.dart';
+import 'diseno.dart';
 
 Future<DateTime?> elegirFecha(BuildContext context, DateTime? actual) async {
   final ahora = DateTime.now();
@@ -37,10 +38,14 @@ class OrdenTarjeta extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: const Color(0xFFF0F2F6),
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: borde),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(18),
@@ -60,7 +65,7 @@ class OrdenTarjeta extends StatelessWidget {
                     ),
                     Text(
                       '#${o.id}',
-                      style: const TextStyle(color: Color(0xFF6A7282)),
+                      style: const TextStyle(color: Color(0xFF526B64)),
                     ),
                   ],
                 ),

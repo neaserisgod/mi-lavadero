@@ -8,6 +8,7 @@ import 'ajustes.dart';
 import 'caja.dart';
 import 'catalogo.dart';
 import 'comun.dart';
+import 'diseno.dart';
 import 'ordenes.dart';
 import 'vehiculos.dart';
 
@@ -47,7 +48,13 @@ class InicioApp extends StatefulWidget {
   State<InicioApp> createState() => _InicioAppState();
 }
 
-class _InicioAppState extends State<InicioApp> with WidgetsBindingObserver {
+class _InicioAppState extends State<InicioApp>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  late final AnimationController cambio = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+    value: 1,
+  );
   DatosApp? datos;
   Object? error;
   int pestania = 0;
@@ -61,6 +68,7 @@ class _InicioAppState extends State<InicioApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    cambio.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -98,20 +106,15 @@ class _InicioAppState extends State<InicioApp> with WidgetsBindingObserver {
     final d = datos;
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              d?.ajustes.nombre ?? 'Mi Lavadero',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF667080)),
-            ),
-            Text(
-              ['Lavados', 'Servicios e insumos', 'Vehículos', 'Caja'][pestania],
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
-            ),
-          ],
+        title: Text(
+          ['Lavados', 'Servicios e insumos', 'Vehículos', 'Caja'][pestania],
+          style: const TextStyle(
+            fontSize: 27,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.7,
+          ),
         ),
-        toolbarHeight: 84,
+        toolbarHeight: 80,
         actions: [
           IconButton(
             tooltip: 'Ajustes y respaldos',
@@ -158,64 +161,78 @@ class _InicioAppState extends State<InicioApp> with WidgetsBindingObserver {
                       ],
                     ),
                   Expanded(
-                    child: switch (pestania) {
-                      0 => PantallaLavados(
-                        datos: d,
-                        abrir: abrir,
-                        repo: widget.repo,
+                    child: FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: cambio,
+                        curve: Curves.easeOutCubic,
                       ),
-                      1 => PantallaCatalogo(
-                        repo: widget.repo,
-                        catalogo: d.catalogo,
-                        abrir: abrir,
+                      child: IndexedStack(
+                        index: pestania,
+                        children: [
+                          PantallaLavados(
+                            datos: d,
+                            abrir: abrir,
+                            repo: widget.repo,
+                          ),
+                          PantallaCatalogo(
+                            repo: widget.repo,
+                            catalogo: d.catalogo,
+                            abrir: abrir,
+                          ),
+                          PantallaVehiculos(
+                            repo: widget.repo,
+                            datos: d,
+                            abrir: abrir,
+                          ),
+                          PantallaCaja(
+                            repo: widget.repo,
+                            cajas: d.cajas,
+                            resumen: d.caja,
+                            abrir: abrir,
+                          ),
+                        ],
                       ),
-                      2 => PantallaVehiculos(
-                        repo: widget.repo,
-                        datos: d,
-                        abrir: abrir,
-                      ),
-                      _ => PantallaCaja(
-                        repo: widget.repo,
-                        cajas: d.cajas,
-                        resumen: d.caja,
-                        abrir: abrir,
-                      ),
-                    },
+                    ),
                   ),
                 ],
               ),
       ),
-      floatingActionButton: d != null && pestania == 0
-          ? FloatingActionButton.extended(
-              onPressed: () =>
-                  abrir(NuevaOrden(repo: widget.repo, catalogo: d.catalogo)),
-              icon: const Icon(Icons.add),
-              label: const Text('Recibir vehículo'),
-            )
-          : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: pestania,
-        onDestinationSelected: (i) => setState(() => pestania = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.local_car_wash_outlined),
-            selectedIcon: Icon(Icons.local_car_wash),
-            label: 'Lavados',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Servicios',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.directions_car_outlined),
-            selectedIcon: Icon(Icons.directions_car),
-            label: 'Vehículos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Caja',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (d != null && pestania == 0)
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: BotonAccion(
+                  'Recibir vehículo',
+                  () => abrir(
+                    NuevaOrden(repo: widget.repo, catalogo: d.catalogo),
+                  ),
+                  icono: Icons.add_rounded,
+                ),
+              ),
+            ),
+          BarraPropia(
+            actual: pestania,
+            cambiar: (i) {
+              if (i == pestania) {
+                return;
+              }
+              setState(() => pestania = i);
+              if (!MediaQuery.disableAnimationsOf(context)) {
+                cambio.forward(from: .35);
+              }
+            },
+            nombres: const ['Lavados', 'Servicios', 'Vehículos', 'Caja'],
+            iconos: const [
+              Icons.local_car_wash_outlined,
+              Icons.grid_view_outlined,
+              Icons.directions_car_outlined,
+              Icons.account_balance_wallet_outlined,
+            ],
           ),
         ],
       ),
@@ -285,25 +302,29 @@ class _PantallaLavadosState extends State<PantallaLavados> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       children: [
         Bloque(
-          color: const Color(0xFFE6EEFF),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'HOY',
-                style: TextStyle(
-                  fontSize: 12,
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w700,
+          color: const Color(0xFF183A38),
+          child: DefaultTextStyle.merge(
+            style: const TextStyle(color: Colors.white),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Hoy en ${widget.datos.ajustes.nombre}',
+                  style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Dato('Cobrado', formatearARS(cobradoHoy), grande: true),
-              Dato('Lavados terminados', '${terminadosHoy.length}'),
-              Dato(
-                'Margen estimado de esos lavados',
-                formatearARS(terminadosHoy.fold(0, (s, d) => s + d.margen)),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Dato('Cobrado', formatearARS(cobradoHoy), grande: true),
+                Dato('Lavados terminados', '${terminadosHoy.length}'),
+                Dato(
+                  'Margen estimado',
+                  formatearARS(terminadosHoy.fold(0, (s, d) => s + d.margen)),
+                ),
+              ],
+            ),
           ),
         ),
         TextField(
