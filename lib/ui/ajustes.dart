@@ -1,3 +1,4 @@
+import 'actualizaciones.dart';
 import 'dart:io';
 import 'dart:convert';
 
@@ -201,8 +202,14 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
         icono: Icons.folder_outlined,
       ),
       const SizedBox(height: 20),
+      BotonAccion(
+        'Buscar actualizaciones',
+        () => Actualizador.revisar(context, 'mi-lavadero', manual: true),
+        icono: Icons.system_update_alt_rounded,
+      ),
+      const VersionInstalada(),
       const Text(
-        'Mi Lavadero · 0.2.0\nApp personal, sin cuenta ni abono. No necesita internet para trabajar.',
+        'App personal, sin cuenta ni abono. No necesita internet para trabajar.',
       ),
     ],
     guardar: () async {
