@@ -11,3 +11,6 @@ android/key.properties
 *.lavadero.json
 capturas/
 .DS_Store
+
+__pycache__/
+*.pyc
