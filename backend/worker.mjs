@@ -10,13 +10,22 @@ const json = (body, status = 200) => Response.json(body, { status, headers: { 'C
 const bytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 const decode = (s) => JSON.parse(new TextDecoder().decode(bytes(s)));
 const hex = (b) => [...new Uint8Array(b)].map(v => v.toString(16).padStart(2, '0')).join('');
-export function claimsOk(c, app, now = Date.now() / 1000) {
-  const a = APPS[app];
-  return Boolean(a && c.iss === ISSUER && c.aud === BASE && c.exp > now && c.nbf <= now + 10 && c.iat <= now + 10 && now - c.iat < 600 &&
-    c.repository === a.repo && c.repository_id === a.repoId && c.repository_owner_id === '98111166' && c.ref === 'refs/heads/main' &&
-    c.sub === `repo:${a.repo}:ref:refs/heads/main` && c.workflow_ref === `${a.repo}/.github/workflows/publicar.yml@refs/heads/main` &&
-    ['workflow_dispatch', 'push'].includes(c.event_name) && /^[a-f0-9]{40}$/.test(c.sha || '') && /^\d+$/.test(c.run_id || ''));
+export function invalidClaims(c, app, now = Date.now() / 1000) {
+  const a = APPS[app]; if (!a) return ['app'];
+  const checks = {
+    issuer: c.iss === ISSUER, audience: c.aud === BASE, expiry: c.exp > now,
+    not_before: c.nbf <= now + 10, issued_at: c.iat <= now + 10 && now - c.iat < 600,
+    repository: c.repository === a.repo, repository_id: String(c.repository_id) === a.repoId,
+    owner_id: String(c.repository_owner_id) === '98111166', ref: c.ref === 'refs/heads/main',
+    subject: typeof c.sub === 'string' && c.sub.length > 0,
+    workflow: c.workflow_ref === `${a.repo}/.github/workflows/publicar.yml@refs/heads/main`,
+    event: ['workflow_dispatch', 'push'].includes(c.event_name),
+    sha: /^[a-f0-9]{40}$/.test(c.sha || ''), run_id: /^\d+$/.test(c.run_id || ''),
+  };
+  return Object.keys(checks).filter(k => !checks[k]);
 }
+export function claimsOk(c, app, now = Date.now() / 1000) { return invalidClaims(c, app, now).length === 0; }
+
 export async function authenticate(request, app, fetcher = fetch, diagnostic = {}) {
   try {
     diagnostic.stage = 'token';
@@ -25,7 +34,9 @@ export async function authenticate(request, app, fetcher = fetch, diagnostic = {
     const parts = token.split('.'); if (parts.length !== 3) return null;
     const h = decode(parts[0]), c = decode(parts[1]);
     diagnostic.stage = 'claims';
-    if (h.alg !== 'RS256' || !claimsOk(c, app)) return null;
+    if (h.alg !== 'RS256') { diagnostic.stage = 'algorithm'; return null; }
+    const failed = invalidClaims(c, app);
+    if (failed.length) { diagnostic.stage = 'claims:' + failed.join(','); return null; }
     diagnostic.stage = 'jwks';
     const response = await fetcher(`${ISSUER}/.well-known/jwks`, { cf: { cacheTtl: 300, cacheEverything: true } });
     if (!response.ok) { diagnostic.stage = 'jwks_http_' + response.status; return null; }

@@ -18,7 +18,7 @@ La app busca novedades al abrir y al volver al primer plano, con intervalo míni
 
 ## Publicación y firma
 
-GitHub OIDC autentica exclusivamente el workflow `publicar.yml` de la rama `main`, con audiencia fija, propietario y repositorios numéricos verificados. No acepta forks, PRs, otras ramas ni otros workflows. No requiere copiar credenciales de Cloudflare a GitHub.
+GitHub OIDC autentica exclusivamente el workflow `publicar.yml` de la rama `main`, con audiencia fija, propietario y repositorios numéricos verificados. No acepta forks, PRs, otras ramas ni otros workflows. La autorización compara los claims firmados de repositorio, propietario, rama y archivo del workflow; no depende del formato personalizable de `sub` de GitHub. No requiere copiar credenciales de Cloudflare a GitHub.
 
 La clave RSA de firma se generó y permanece como secreto `SIGNING_PRIVATE_KEY` del Worker. Solo ese workflow autorizado puede obtenerla durante la compilación; `tool/publicar.py` genera un certificado determinista y un keystore temporal. Nunca se publica el keystore como artifact ni se imprime la clave. La contraseña del contenedor temporal no es una credencial del servidor. No rotar este secreto salvo que se planifique una migración de firma: Android no permite actualizar una app con otro certificado.
 
