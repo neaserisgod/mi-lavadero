@@ -17,18 +17,23 @@ export function claimsOk(c, app, now = Date.now() / 1000) {
     c.sub === `repo:${a.repo}:ref:refs/heads/main` && c.workflow_ref === `${a.repo}/.github/workflows/publicar.yml@refs/heads/main` &&
     ['workflow_dispatch', 'push'].includes(c.event_name) && /^[a-f0-9]{40}$/.test(c.sha || '') && /^\d+$/.test(c.run_id || ''));
 }
-export async function authenticate(request, app, fetcher = fetch) {
+export async function authenticate(request, app, fetcher = fetch, diagnostic = {}) {
   try {
+    diagnostic.stage = 'token';
     const token = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(request.headers.get('Authorization') || '')?.[1];
     if (!token || token.length > 20000) return null;
     const parts = token.split('.'); if (parts.length !== 3) return null;
     const h = decode(parts[0]), c = decode(parts[1]);
+    diagnostic.stage = 'claims';
     if (h.alg !== 'RS256' || !claimsOk(c, app)) return null;
+    diagnostic.stage = 'jwks';
     const response = await fetcher(`${ISSUER}/.well-known/jwks`, { cf: { cacheTtl: 300, cacheEverything: true } });
-    if (!response.ok) return null;
-    const jwk = (await response.json()).keys.find(k => k.kid === h.kid && k.kty === 'RSA' && k.alg === 'RS256' && k.use === 'sig');
+    if (!response.ok) { diagnostic.stage = 'jwks_http_' + response.status; return null; }
+    const jwk = (await response.json()).keys.find(k => k.kid === h.kid && k.kty === 'RSA' && (!k.alg || k.alg === 'RS256') && (!k.use || k.use === 'sig'));
     if (!jwk) return null;
+    diagnostic.stage = 'key';
     const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    diagnostic.stage = 'signature';
     return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, bytes(parts[2]), new TextEncoder().encode(`${parts[0]}.${parts[1]}`)) ? c : null;
   } catch { return null; }
 }
@@ -69,8 +74,9 @@ export async function handle(request, env) {
     return new Response(request.method === 'HEAD' ? null : o.body, { status: partial ? 206 : 200, headers });
   }
   if (url.pathname.startsWith('/api/ci/')) {
-    const c = await authenticate(request, app);
-    if (!c) return json({ error: 'unauthorized' }, 401);
+    const diagnostic = {};
+    const c = await authenticate(request, app, fetch, diagnostic);
+    if (!c) return json({ error: 'unauthorized', check: diagnostic.stage }, 401);
     if (url.pathname === '/api/ci/signing-key' && request.method === 'GET') {
       if (!env.SIGNING_PRIVATE_KEY) return json({ error: 'signing_unavailable' }, 503);
       return json({ privateKey: env.SIGNING_PRIVATE_KEY });
