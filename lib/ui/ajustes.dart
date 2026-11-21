@@ -202,7 +202,7 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
       ),
       const SizedBox(height: 20),
       const Text(
-        'Mi Lavadero · 0.1.0\nApp personal, sin cuenta ni abono. No necesita internet para trabajar.',
+        'Mi Lavadero · 0.1.1\nApp personal, sin cuenta ni abono. No necesita internet para trabajar.',
       ),
     ],
     guardar: () async {

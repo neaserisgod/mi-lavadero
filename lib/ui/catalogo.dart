@@ -94,14 +94,17 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
                 : EditorInsumo(repo: widget.repo),
           ),
           icon: const Icon(Icons.add),
-          label: Text(tab == 0 ? 'Crear servicio o extra' : 'Cargar insumo'),
+          label: Text(tab == 0 ? 'Agregar servicio' : 'Cargar insumo'),
         ),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Mostrar dados de baja'),
-          value: verInactivos,
-          onChanged: (v) => setState(() => verInactivos = v),
-        ),
+        if ((tab == 0
+            ? c.servicios.any((s) => !s.activo)
+            : c.insumos.any((i) => !i.activo)))
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Mostrar dados de baja'),
+            value: verInactivos,
+            onChanged: (v) => setState(() => verInactivos = v),
+          ),
         if (tab == 0) ...[
           if (servicios.isEmpty)
             const Vacio(
@@ -304,15 +307,25 @@ class _EditorInsumoState extends State<EditorInsumo> {
         ayuda: 'Un bidón de 5 litros contiene 5000 ml.',
       ),
       Campo('Costo del envase (\$) *', costo, numerico: true),
-      Campo('Avisar al llegar a (${unidad.clave})', minimo, numerico: true),
-      if (widget.insumo == null)
-        Campo('Cantidad que ya tenés (${unidad.clave})', stock, numerico: true),
-      if (widget.insumo != null)
-        SwitchListTile(
-          title: const Text('Activo'),
-          value: activo,
-          onChanged: (v) => setState(() => activo = v),
-        ),
+      ExpansionTile(
+        title: const Text('Más opciones'),
+        tilePadding: EdgeInsets.zero,
+        children: [
+          Campo('Avisar al llegar a (${unidad.clave})', minimo, numerico: true),
+          if (widget.insumo == null)
+            Campo(
+              'Cantidad que ya tenés (${unidad.clave})',
+              stock,
+              numerico: true,
+            ),
+          if (widget.insumo != null)
+            SwitchListTile(
+              title: const Text('Activo'),
+              value: activo,
+              onChanged: (v) => setState(() => activo = v),
+            ),
+        ],
+      ),
     ],
     guardar: () async {
       final cant = milesimasDesdeTexto(contenido.text);
@@ -466,6 +479,28 @@ class EditorServicio extends StatefulWidget {
 
 class _EditorServicioState extends State<EditorServicio> {
   late final nombre = TextEditingController(text: widget.servicio?.nombre);
+  late final precio = TextEditingController(
+    text: widget.servicio == null
+        ? ''
+        : pesosCampo(
+            widget.catalogo.tarifas
+                .firstWhere((t) => t.servicioId == widget.servicio!.id)
+                .precio,
+          ),
+  );
+  bool avanzado = false;
+  late bool preciosDistintos =
+      widget.servicio != null &&
+      (widget.catalogo.tarifas
+                  .where((t) => t.servicioId == widget.servicio!.id)
+                  .length !=
+              TipoVehiculo.values.length ||
+          widget.catalogo.tarifas
+                  .where((t) => t.servicioId == widget.servicio!.id)
+                  .map((t) => t.precio)
+                  .toSet()
+                  .length >
+              1);
   late final duracion = TextEditingController(
     text: '${widget.servicio?.duracion ?? 30}',
   );
@@ -488,12 +523,13 @@ class _EditorServicioState extends State<EditorServicio> {
     ))
       r.insumoId: TextEditingController(text: textoDeMilesimas(r.cantidad)),
   };
-  late bool manoDeObra = widget.servicio?.manoDeObra ?? true;
+  late bool manoDeObra = widget.servicio?.manoDeObra ?? false;
   late bool activo = widget.servicio?.activo ?? true;
   @override
   void dispose() {
     for (final c in [
       nombre,
+      precio,
       duracion,
       margen,
       ...precios.values,
@@ -529,107 +565,147 @@ class _EditorServicioState extends State<EditorServicio> {
           )
         : 0;
     return Formulario(
-      titulo: widget.servicio == null
-          ? 'Nuevo servicio o extra'
-          : 'Editar servicio',
+      titulo: widget.servicio == null ? 'Nuevo servicio' : 'Editar servicio',
       campos: [
         Campo(
           'Nombre *',
           nombre,
           ayuda: 'Por ejemplo: lavado completo, encerado o tapizados.',
         ),
-        Campo(
-          'Duración en minutos *',
-          duracion,
-          numerico: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Incluir mano de obra'),
-          subtitle: Text(
-            'Hora de trabajo: ${formatearARS(widget.catalogo.valorHora)}. Se cambia en Ajustes.',
+        if (!preciosDistintos)
+          Campo(
+            r'Precio ($) *',
+            precio,
+            numerico: true,
+            ayuda: 'El mismo para todos los vehículos.',
           ),
-          value: manoDeObra,
-          onChanged: (v) => setState(() => manoDeObra = v),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Insumos por servicio',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        for (final i in widget.catalogo.insumos.where(
-          (i) => i.activo || cantidades.containsKey(i.id),
-        )) ...[
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('${i.nombre} (${i.unidad})'),
-            value: cantidades.containsKey(i.id),
-            onChanged: (v) => setState(() {
-              if (v!) {
-                cantidades[i.id] = TextEditingController();
-              } else {
-                cantidades.remove(i.id)?.dispose();
-              }
-            }),
-          ),
-          if (cantidades[i.id] case final ctrl?)
-            Campo(
-              'Cantidad usada (${i.unidad}) *',
-              ctrl,
-              numerico: true,
-              onChanged: (_) => setState(() {}),
-            ),
-        ],
-        if (widget.catalogo.insumos.isEmpty)
-          const Text('Podés agregar la receta después de cargar tus insumos.'),
-        const SizedBox(height: 16),
-        Bloque(
-          child: Column(
+        if (preciosDistintos)
+          Wrap(
+            spacing: 8,
             children: [
-              Dato('Insumos por lavado', formatearARS(costo.insumosCentavos)),
-              Dato(
-                'Mano de obra estimada',
-                formatearARS(costo.manoDeObraCentavos),
-              ),
-              Dato(
-                'Costo estimado',
-                formatearARS(costo.totalCentavos),
-                grande: true,
-              ),
-              if (alcanzaPara(usos) case final n?)
-                Dato('Alcanza para', '$n servicios'),
+              for (final t in TipoVehiculo.values)
+                if (precios[t]!.text.isNotEmpty)
+                  Chip(label: Text('${t.etiqueta}: \$${precios[t]!.text}')),
             ],
           ),
+        TextButton.icon(
+          onPressed: () => setState(() => avanzado = !avanzado),
+          icon: Icon(avanzado ? Icons.expand_less : Icons.expand_more),
+          label: Text(avanzado ? 'Menos opciones' : 'Más opciones'),
         ),
-        Campo(
-          'Margen buscado (%)',
-          margen,
-          numerico: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        Text(
-          'Precio sugerido: ${formatearARS(sugerido)}. No incluye gastos fijos ni impuestos.',
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Precios por vehículo',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            'Dejá vacío un tipo de vehículo que no atendés. Podés acordar otro precio al crear una orden.',
-          ),
-        ),
-        for (final t in TipoVehiculo.values)
-          Campo('${t.etiqueta} (\$)', precios[t]!, numerico: true),
-        if (widget.servicio != null)
+        if (avanzado) ...[
           SwitchListTile(
-            title: const Text('Se ofrece actualmente'),
-            value: activo,
-            onChanged: (v) => setState(() => activo = v),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Precios diferentes por vehículo'),
+            value: preciosDistintos,
+            onChanged: (v) => setState(() {
+              if (v) {
+                for (final c in precios.values) {
+                  if (c.text.isEmpty) c.text = precio.text;
+                }
+              } else {
+                // Elegir un precio único es explícito; conserva las tarifas mientras se edita.
+                if (precio.text.isEmpty) {
+                  precio.text = precios.values
+                      .firstWhere(
+                        (c) => c.text.isNotEmpty,
+                        orElse: () => precios.values.first,
+                      )
+                      .text;
+                }
+              }
+              preciosDistintos = v;
+            }),
           ),
+          if (preciosDistintos) ...[
+            const Text('Dejá vacío un vehículo que no atendés.'),
+            const SizedBox(height: 16),
+            for (final t in TipoVehiculo.values)
+              Campo('${t.etiqueta} (\$)', precios[t]!, numerico: true),
+          ],
+          Campo(
+            'Duración en minutos *',
+            duracion,
+            numerico: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Incluir mano de obra'),
+            subtitle: Text(
+              'Hora de trabajo: ${formatearARS(widget.catalogo.valorHora)}. Se cambia en Ajustes.',
+            ),
+            value: manoDeObra,
+            onChanged: (v) => setState(() => manoDeObra = v),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Insumos por servicio',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          for (final i in widget.catalogo.insumos.where(
+            (i) => i.activo || cantidades.containsKey(i.id),
+          )) ...[
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('${i.nombre} (${i.unidad})'),
+              value: cantidades.containsKey(i.id),
+              onChanged: (v) => setState(() {
+                if (v!) {
+                  cantidades[i.id] = TextEditingController();
+                } else {
+                  cantidades.remove(i.id)?.dispose();
+                }
+              }),
+            ),
+            if (cantidades[i.id] case final ctrl?)
+              Campo(
+                'Cantidad usada (${i.unidad}) *',
+                ctrl,
+                numerico: true,
+                onChanged: (_) => setState(() {}),
+              ),
+          ],
+          if (widget.catalogo.insumos.isEmpty)
+            const Text(
+              'Podés agregar la receta después de cargar tus insumos.',
+            ),
+          const SizedBox(height: 16),
+          Bloque(
+            child: Column(
+              children: [
+                Dato('Insumos por lavado', formatearARS(costo.insumosCentavos)),
+                Dato(
+                  'Mano de obra estimada',
+                  formatearARS(costo.manoDeObraCentavos),
+                ),
+                Dato(
+                  'Costo estimado',
+                  formatearARS(costo.totalCentavos),
+                  grande: true,
+                ),
+                if (alcanzaPara(usos) case final n?)
+                  Dato('Alcanza para', '$n servicios'),
+              ],
+            ),
+          ),
+          Campo(
+            'Margen buscado (%)',
+            margen,
+            numerico: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          Text(
+            'Precio sugerido: ${formatearARS(sugerido)}. No incluye gastos fijos ni impuestos.',
+          ),
+
+          if (widget.servicio != null)
+            SwitchListTile(
+              title: const Text('Se ofrece actualmente'),
+              value: activo,
+              onChanged: (v) => setState(() => activo = v),
+            ),
+        ],
       ],
       guardar: () async {
         final min = int.tryParse(duracion.text);
@@ -653,10 +729,13 @@ class _EditorServicioState extends State<EditorServicio> {
           nombre: nombre.text,
           duracion: min,
           manoDeObra: manoDeObra,
-          precios: {
-            for (final e in precios.entries)
-              if (e.value.text.trim().isNotEmpty) e.key: montoCampo(e.value),
-          },
+          precios: preciosDistintos
+              ? {
+                  for (final e in precios.entries)
+                    if (e.value.text.trim().isNotEmpty)
+                      e.key: montoCampo(e.value),
+                }
+              : {for (final t in TipoVehiculo.values) t: montoCampo(precio)},
           receta: receta,
           activo: activo,
           gananciaBuscada: pct * 100,

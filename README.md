@@ -20,8 +20,8 @@ Los pagos digitales se verifican en el banco o billetera y después se anotan: l
 ## Empezar a usarla
 
 1. En Ajustes cargá el nombre de tu lavadero y el valor de tu hora.
-2. En Servicios → Insumos cargá tus envases, costos y cantidades.
-3. Creá tus servicios y extras con los precios que cobrás y sus insumos.
+2. Creá un servicio con **nombre y precio** y tocá Guardar. Ese precio sirve para todos los vehículos.
+3. Cuando lo necesites, abrí **Más opciones** para agregar duración, insumos, costos o precios diferentes por vehículo. Los insumos se cargan en su propia solapa; podés completarlos después.
 4. Tocá **Recibir vehículo**. La primera visita guarda su ficha; las siguientes se buscan por patente.
 5. Abrí la caja para registrar pagos y gastos. Exportá respaldos y guardalos fuera del celular.
 
