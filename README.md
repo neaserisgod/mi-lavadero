@@ -42,7 +42,7 @@ flutter build apk --debug
 
 El APK de prueba queda en `build/app/outputs/flutter-apk/app-debug.apk`. Es una compilación de prueba; para mantener actualizaciones instalables entre equipos hay que conservar la misma clave de firma. No desinstales una versión con datos sin exportar antes su respaldo.
 
-El workflow de CI verifica formato, análisis y tests, y genera un APK de prueba como artifact. La clave de prueba se conserva en el secreto `ANDROID_DEBUG_KEYSTORE` para poder instalar las siguientes compilaciones encima de la anterior. No publica en una tienda ni despliega servidores. Para una distribución estable hay que configurar una firma de producción.
+El workflow de CI verifica formato, análisis y tests, y genera un APK de prueba como artifact. Si se configura el secreto `ANDROID_DEBUG_KEYSTORE` (el archivo de firma en base64), conserva esa firma para poder instalar las siguientes compilaciones encima de la anterior. Sin el secreto, cada runner genera una firma temporal: esos APK no pueden actualizar una instalación firmada con otra clave. No publica en una tienda ni despliega servidores. Para una distribución estable hay que configurar una firma de producción. Nunca se sube el archivo de firma al código del repositorio.
 
 ## Estructura
 

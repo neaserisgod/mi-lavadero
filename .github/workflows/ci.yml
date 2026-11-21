@@ -37,12 +37,13 @@ jobs:
           import base64, os
           from pathlib import Path
           clave = os.environ['LAVADERO_KEYSTORE']
-          if not clave:
-              raise SystemExit('Falta configurar ANDROID_DEBUG_KEYSTORE en los secretos del repositorio.')
-          destino = Path.home() / '.android' / 'debug.keystore'
-          destino.parent.mkdir(parents=True, exist_ok=True)
-          destino.write_bytes(base64.b64decode(clave))
-          destino.chmod(0o600)
+          if clave:
+              destino = Path.home() / '.android' / 'debug.keystore'
+              destino.parent.mkdir(parents=True, exist_ok=True)
+              destino.write_bytes(base64.b64decode(clave))
+              destino.chmod(0o600)
+          else:
+              print('APK de prueba con firma temporal. Configurá ANDROID_DEBUG_KEYSTORE para conservar actualizaciones instalables.')
           PY
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
