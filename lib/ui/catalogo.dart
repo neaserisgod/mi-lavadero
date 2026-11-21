@@ -34,6 +34,14 @@ class Catalogo {
     return null;
   }
 
+  int? precioGeneral(int servicioId) {
+    final lista = tarifas.where((t) => t.servicioId == servicioId).toList();
+    return lista.length == TipoVehiculo.values.length &&
+            lista.map((t) => t.precio).toSet().length == 1
+        ? lista.first.precio
+        : null;
+  }
+
   List<UsoDeInsumo> usos(int servicioId) => [
     for (final r in recetas.where((r) => r.servicioId == servicioId))
       UsoDeInsumo(
@@ -137,21 +145,30 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
                       ),
                     ],
                   ),
-                  Text(
-                    '${s.duracion} min · costo estimado ${formatearARS(c.costo(s).totalCentavos)}',
-                  ),
+                  if (c.costo(s).totalCentavos > 0 || c.usos(s.id).isNotEmpty)
+                    Text(
+                      '${s.duracion} min · costo estimado ${formatearARS(c.costo(s).totalCentavos)}',
+                    ),
                   if (alcanzaPara(c.usos(s.id)) case final n?)
                     Text('Los insumos alcanzan para $n servicios'),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      for (final t in TipoVehiculo.values)
-                        if (c.precio(s.id, t) case final p?)
-                          Chip(label: Text('${t.etiqueta} ${formatearARS(p)}')),
-                    ],
-                  ),
+                  if (c.precioGeneral(s.id) case final precio?)
+                    Text(
+                      formatearARS(precio),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        for (final t in TipoVehiculo.values)
+                          if (c.precio(s.id, t) case final p?)
+                            Chip(
+                              label: Text('${t.etiqueta} ${formatearARS(p)}'),
+                            ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -491,16 +508,7 @@ class _EditorServicioState extends State<EditorServicio> {
   bool avanzado = false;
   late bool preciosDistintos =
       widget.servicio != null &&
-      (widget.catalogo.tarifas
-                  .where((t) => t.servicioId == widget.servicio!.id)
-                  .length !=
-              TipoVehiculo.values.length ||
-          widget.catalogo.tarifas
-                  .where((t) => t.servicioId == widget.servicio!.id)
-                  .map((t) => t.precio)
-                  .toSet()
-                  .length >
-              1);
+      widget.catalogo.precioGeneral(widget.servicio!.id) == null;
   late final duracion = TextEditingController(
     text: '${widget.servicio?.duracion ?? 30}',
   );
